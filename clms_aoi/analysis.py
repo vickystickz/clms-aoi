@@ -8,8 +8,9 @@ from typing import Iterable
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from clms_aoi.aoi import aoi_geojson, compute_area_ha, prepare_aoi
-from clms_aoi.auth import build_token_cache, load_config
+from clms_aoi.aoi import AOIHandler
+from clms_aoi.auth import SentinelHubAuthenticator
+from clms_aoi.config import ConfigLoader
 from clms_aoi.outputs import write_csv
 from clms_aoi.products.dynamic_land_cover import DynamicLandCover
 from clms_aoi.products.tree_cover import TreeCoverProduct
@@ -82,8 +83,9 @@ class AnalysisResult:
 
 class _BaseAnalyser:
     def __init__(self, config_path: str | Path) -> None:
-        cfg = load_config(config_path)
-        self._token_cache = build_token_cache(cfg)
+        cfg = ConfigLoader.load(config_path)
+        authenticator = SentinelHubAuthenticator(cfg.sentinelhub)
+        self._token_cache = authenticator.get_sh_config(save_profile=None)
 
     def _run(
         self,
@@ -93,9 +95,11 @@ class _BaseAnalyser:
         years: Iterable[int] | None,
     ) -> AnalysisResult:
         resolved = _resolve_years(year, years)
-        gdf, bbox = prepare_aoi(aoi)
-        geometry = aoi_geojson(gdf)
-        aoi_area_ha = compute_area_ha(gdf)
+        handler = AOIHandler(aoi)
+        handler.load_and_validate()
+        bbox = handler.get_bbox()
+        geometry = handler.geometry_geojson()
+        aoi_area_ha = handler.area_ha()
 
         frames: list[pd.DataFrame] = []
         for y in resolved:

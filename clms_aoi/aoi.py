@@ -14,6 +14,8 @@ from .exceptions import (
 
 logger = logging.getLogger(__name__)
 
+# A bounding box as (minx,miny,maxx,maxy) in the AOI's CRS, defined as a type alias.
+BoundingBox = tuple[float, float, float,float]
 
 class AOIHandler:
     """Loads, validates, and processes vector AOI files (.geojson, .gpkg)."""
@@ -90,3 +92,15 @@ class AOIHandler:
         if self.merged_geometry is None:
             self.load_and_validate()
         return self.merged_geometry
+
+
+    def geometry_geojson(self) -> dict:
+        """ Returns the merged AOI geometry as a GeoJSON dict."""
+        return self.get_geometry().__geo_interface__
+
+    def area_ha(self) -> float:
+        """ Returns total area in hectares using an equal-area projection"""
+        if self.gdf is None:
+            self.load_and_validate()
+        projected = self.gdf.to_crs("EPSG:6933")
+        return float(projected.geometry.area.sum()/10000.0)
