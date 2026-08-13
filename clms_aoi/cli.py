@@ -24,8 +24,8 @@ def cmd_validate_config(args):
     """Validates the given YAML configuration file."""
     try:
         config = ConfigLoader.load(args.path)
-        logging.info("Config loaded successfully from '{args.path}'.")
-        logging.info("Products configured: {config.products}")
+        logging.info(f"Config loaded successfully from '{args.path}'.")
+        logging.info(f"Products configured: {config.products}")
         return 0
     except ClmsAoiError as error:
         logging.error(f"Config Validation Error: {error}")
@@ -42,7 +42,7 @@ def cmd_check_auth(args):
         logging.info(f"Access Token: {token[:15]}...")
         return 0
     except ClmsAoiError as error:
-        logging.error("Authentication Failed: {error}")
+        logging.error(f"Authentication Failed: {error}")
         return 1
 
 
