@@ -1,8 +1,10 @@
 # clms-aoi
 
-A lightweight Python library and CLI for extracting and summarizing Copernicus Land Monitoring Service (CLMS) data for any area of interest.
+A lightweight Python library and CLI for extracting and summarising Copernicus Land Monitoring Service (CLMS) data for any area of interest, via Sentinel Hub's Statistical API.
 
-Point it at a boundary file, pick a product and year, and get back a CSV table, a bar chart, or both. No custom API boilerplate required.
+Point it at a boundary file, pick a product and year, and get back a pandas DataFrame, a CSV, and/or a bar chart — no hand-rolled Sentinel Hub request boilerplate required.
+
+> **Status:** early (`0.1.0`). The Python API is the primary interface today; the CLI currently covers config/auth/AOI validation only (see [CLI usage](#cli-usage)).
 
 ---
 
@@ -14,12 +16,14 @@ Land use analysts, GIS practitioners, students, NGOs, and small consultancies wh
 
 ## Supported products
 
-| Product | Description | Available years |
-|---|---|---|
-| Dynamic Land Cover | Annual global land cover classification (tree cover, cropland, grassland, built-up, water, etc.) | 2018–2024 |
-| Tree Cover Density (TCD) | Pan-European canopy cover as a percentage (0–100) | 2018, 2021, 2024 |
-| Forest Type (FTY) | Broadleaved vs. coniferous forest classification | 2018, 2021, 2024 |
-| Grasslands | Pan-European presence/absence of grassland | 2018, 2021, 2024 |
+| Product | Description | Available years | Status |
+|---|---|---|---|
+| Dynamic Land Cover | Annual global land cover classification (tree cover, cropland, grassland, built-up, water, etc.) | 2018–2024 | Available via Python API (`LandCover`) |
+| Forest Type (FTY) | Broadleaved vs. coniferous forest classification | 2018, 2021, 2024 | Available via Python API (`ForestType`) |
+| Tree Cover Density (TCD) | Pan-European canopy cover as a percentage (0–100) | 2018, 2021, 2024 | In progress — fetch/visualise only, not yet exposed as a public class |
+| CLC+ Backbone (LULUCF instance) | 27-class pan-European land use classification | 2018, 2021–2023 | In progress — fetch/visualise only, not yet exposed as a public class |
+
+Grasslands is not currently implemented.
 
 ---
 
@@ -46,7 +50,7 @@ pip install -e .
 ```
 pip install pytest
 ```
-and run: 
+and run:
 ```
 pytest
 ```
@@ -54,67 +58,49 @@ pytest
 
 ## Configuration
 
-Create a config file at `config/config.yaml` with your Sentinel Hub credentials:
+Create a YAML config file with your Sentinel Hub credentials (get these from the [Copernicus Data Space Ecosystem](https://dataspace.copernicus.eu/)):
 
 ```yaml
 sentinelhub:
   client_id: "your-client-id"
   client_secret: "your-client-secret"
-
-aoi:
-  path: "sample_data/sample_aoi.geojson"
-  target_crs: "EPSG:4326"
-
-
-defaults:
-  output_dir: "./clms-aoi-output"
-  dpi: 150
 ```
 
-You can point to a different config file at runtime using the `--config` flag.
+Credentials can also be supplied via the `CLMS_SH_CLIENT_ID` / `CLMS_SH_CLIENT_SECRET` environment variables instead of (or as a fallback for) the YAML file.
+
+**Never commit a config file containing real credentials.** Keep your local config out of version control (it's covered by `.gitignore` by default) — a config file with a placeholder/example only should be committed, if any.
 
 ---
 
 ## CLI usage
 
+The CLI currently covers configuration and AOI validation. Product analysis (land cover, forest type, etc.) is available through the [Python API](#python-api) below.
+
 ```bash
-# To check correct credentials 
+# Validate a config file's structure
+clms-aoi validate-config config/config.yaml
+
+# Check Sentinel Hub credentials are valid
 clms-aoi check-auth --config config/config.yaml
 
-# Run validation on valid file
+# Validate an AOI boundary file (.geojson or .gpkg)
 clms-aoi check-aoi --aoi tests/data/test_aoi.geojson
 clms-aoi check-aoi --aoi tests/data/test_aoi.gpkg
 
-# Run with verbose
+# Run with verbose (debug) logging
 clms-aoi -v check-aoi --aoi tests/data/test_aoi.geojson
 
-# Test error handling
+# Errors are reported cleanly instead of raising a traceback
 clms-aoi check-aoi --aoi missing.geojson
-
-# Single year, chart output
-clms-aoi land-cover --aoi ./boundary.geojson --year 2020 --output ./out --format chart
-
-# Multiple specific years, CSV output
-clms-aoi tree-cover --aoi ./boundary.gpkg --year 2018,2021,2024 --output ./out --format csv
-
-# Year range, chart output
-clms-aoi forest-type --aoi ./boundary.geojson --year 2018-2024 --output ./out --format chart
-
-# All available years, CSV and chart
-clms-aoi grassland --aoi ./boundary.geojson --year all --output ./out --format both
 ```
 
 ### Options
 
 | Option | Description |
 |---|---|
-| `--aoi` | Path to a GeoJSON or GeoPackage file. Multi-polygon inputs are dissolved before the request. |
-| `--year` | Year(s) to analyse. Accepts a single year (`2020`), a comma-separated list (`2018,2021,2024`), a range (`2018-2024`), or `all`. Defaults to the most recent year available for the product. |
-| `--output` | Directory where results are written. |
-| `--format` | Output format: `csv`, `chart`, or `both`. |
-| `--config` | Path to config file. Defaults to `~/.clms-aoi/config.yml`. |
-
-If you request a year that is not available for a product, the CLI will tell you which years are valid and exit cleanly.
+| `--verbose`, `-v` | Enable debug logging output. Global flag, placed before the subcommand. |
+| `--aoi` | Path to a GeoJSON or GeoPackage file (`check-aoi`). Multi-feature inputs are merged into a single geometry. |
+| `--config` | Path to the YAML config file (`check-auth`). Defaults to `config.yaml` in the current directory. |
 
 ---
 
@@ -123,9 +109,9 @@ If you request a year that is not available for a product, the CLI will tell you
 You can call the library directly from notebooks or pipelines:
 
 ```python
-from clms_aoi import LandCover, TreeCoverDensity
+from clms_aoi import LandCover, ForestType
 
-lc = LandCover(config_path="config.yml")
+lc = LandCover(config_path="config.yaml")
 
 # Single year
 result = lc.analyse(aoi="boundary.geojson", year=2020)
@@ -133,57 +119,78 @@ result = lc.analyse(aoi="boundary.geojson", year=2020)
 # Multiple years
 result = lc.analyse(aoi="boundary.geojson", years=[2018, 2021, 2024])
 
-# Range
-result = lc.analyse(aoi="boundary.geojson", years=range(2018, 2025))
-
 result.to_csv("landcover.csv")
 result.to_chart("landcover.jpg")
+
+# Access the underlying DataFrame directly
+result.data
+
+# Fetch and display the color-mapped map for a single year
+lc.visualize(aoi="boundary.geojson", year=2020)
 ```
+
+`ForestType` has the same shape:
+
+```python
+from clms_aoi import ForestType
+
+ft = ForestType(config_path="config.yaml")
+result = ft.analyse(aoi="boundary.geojson", years=[2018, 2021, 2024])
+result.to_csv("forest_type.csv").to_chart("forest_type.jpg")
+```
+
+Pass exactly one of `year=` (a single int) or `years=` (a list/range of ints) to `analyse()`.
 
 ---
 
 ## Outputs
 
-### CSV
+### CSV / DataFrame
 
-A tidy table with columns for class name, pixel count, area in hectares, and percentage of AOI. When multiple years are requested, a `year` column is added and all years are written to a single file.
-
-Filename pattern: `<product>_<aoi-name>_<first-year>-<last-year>.csv`
-Example: `land-cover_boundary_2018-2024.csv`
+`result.data` is a tidy `pandas.DataFrame` with columns for class name, pixel count, percentage of the AOI, and area in hectares. When multiple years are requested, a `year` column is added and all years are included in a single table. `result.to_csv(path)` writes that table to the path you give it.
 
 ### Chart (JPG)
 
-A bar chart of area per class, saved as a JPG with configurable DPI. When multiple years are requested, a single chart is produced with years on the x-axis so trends are visible at a glance.
+`result.to_chart(path)` renders a bar chart of area per class. When multiple years are requested, the chart groups bars by class with one bar per year so trends are visible at a glance.
 
 ---
 
 ## Dependencies
 
-- `sentinelhub-py` — authenticated raster requests
-- `geopandas` and `shapely` — AOI handling
-- `rasterio` and `numpy` — raster summarisation
-- `matplotlib` — chart rendering
+- `sentinelhub` — authenticated Statistical API requests
+- `geopandas`, `shapely`, `pyproj` — AOI handling and reprojection
+- `numpy` — raster array summarisation
+- `matplotlib` — chart and map rendering
 - `pandas` — tabular output
 - `click` — CLI
-- `pyyaml` — config parsing
+- `requests` — Sentinel Hub OAuth token requests
+- `PyYAML` — config parsing
 
 ---
 
 ## Limitations and known constraints
 
-- **No change detection.** The library reports values per year but does not compute transition matrices or gain/loss statistics between years. This is planned for a future release.
-- **No map outputs.** Only summary statistics and charts are produced; clipped raster maps are not.
-- **AOI size.** Sentinel Hub has request size and pixel count limits. For large AOIs the library will warn you when the limit is likely to be exceeded.
-- **Products outside the four listed above** (imperviousness, water and wetness, bio-geophysical parameters, etc.) are not supported in this release.
+- **CLI analysis commands not yet available.** `land-cover`/`forest-type`-style CLI subcommands are planned but not implemented; use the Python API in the meantime.
+- **Only two products are fully wired up.** Dynamic Land Cover and Forest Type are exposed as `LandCover`/`ForestType`. Tree Cover Density and CLC+ Backbone exist in the codebase but aren't yet exposed as public classes.
+- **No Grasslands product.**
+- **No change detection.** The library reports values per year but does not compute transition matrices or gain/loss statistics between years.
+- **No map outputs to disk.** `visualize()` returns/plots an image array; it does not currently save clipped raster maps to a file for you.
+- **AOI size.** Sentinel Hub has request size and pixel count limits; very large AOIs may hit them.
 
 ---
 
 ## Quick start
 
-Install the package, add your credentials to `~/.clms-aoi/config.yml`, then run:
+Install the package and add your Sentinel Hub credentials to a config file, then run:
 
-```bash
-clms-aoi land-cover --aoi ./my-boundary.geojson --year 2022 --output ./results --format both
+```python
+from clms_aoi import LandCover
+
+lc = LandCover(config_path="config.yaml")
+result = lc.analyse(aoi="./my-boundary.geojson", year=2022)
+
+result.to_csv("./results/land-cover-2022.csv")
+result.to_chart("./results/land-cover-2022.jpg")
 ```
 
-Open `results/` and you will find a CSV table and a bar chart ready to share.
+You'll find a CSV table and a bar chart in `./results/`, ready to share.
