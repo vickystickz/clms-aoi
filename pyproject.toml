@@ -1,12 +1,19 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=69.5", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "clms-aoi"
 version = "0.1.0"
 description = "Analyse Copernicus Land Monitoring Service products for an area of interest."
+readme = "README.md"
 requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICENSE"]
 
 authors = [
     { name = "Victor Ademoyero" },
@@ -15,9 +22,9 @@ authors = [
 ]
 
 dependencies = [
-    "click>=8.1",
     "geopandas>=0.14",
     "matplotlib>=3.8",
+    "numpy>=1.24",
     "pandas>=2.0",
     "pyproj>=3.6",
     "requests>=2.31",
@@ -31,6 +38,10 @@ dev = [
     "pytest>=8.0",
     "pytest-cov",
 ]
+
+[project.urls]
+Homepage = "https://github.com/vickystickz/clms-aoi"
+Issues = "https://github.com/vickystickz/clms-aoi/issues"
 
 [project.scripts]
 clms-aoi = "clms_aoi.cli:main"
