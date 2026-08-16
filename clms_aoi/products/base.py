@@ -19,7 +19,22 @@ _STATS_PATH = "/api/v1/statistics"
 
 
 class BaseProduct(ABC):
-    """Abstract base for a CLMS product fetcher + summariser."""
+    """Abstract base for a CLMS product fetcher + summariser.
+
+     Attributes
+        ----------
+        config : any
+            The configuration object for the Sentinel Hub API.
+        base_url : string
+            The base URL for the Sentinel Hub API.
+
+    Methods
+        ----------
+        _request_data()
+            Call the Sentinel Hub Statistical API and return the parsed JSON.
+        visualize()
+            Return a visualization of the product (e.g. a color map).
+    """
 
     #: Sentinel Hub collection ID (BYOC).
     COLLECTION_ID: str = ""
@@ -29,20 +44,20 @@ class BaseProduct(ABC):
         self._stats_url = base_url.rstrip("/") + _STATS_PATH
 
     @abstractmethod
-    def visualize() -> Any:
+    def visualize(self) -> Any:
         """Return a visualization of the product (e.g. a color map)."""
 
     @abstractmethod
-    def statistics() -> Any:
-        """Return a visualization of the product (e.g. a color map)."""
+    def summarize(self) -> Any:
+        """Return a summary of the product (e.g. per-class pixel counts)."""
 
     def _request_data(
         self,
-        bbox:  tuple[float, float, float, float],
         geometry: dict | None,
         year: int,
         evalscript: str,
         resolution: float = 0.001,
+        response_format: MimeType = MimeType.PNG,
     ) -> Any:
         """Call the Sentinel Hub Statistical API and return the parsed JSON."""
         geometry = Geometry(geometry, crs=CRS.WGS84)
@@ -57,7 +72,8 @@ class BaseProduct(ABC):
                 ),
             ],
             responses=[
-                SentinelHubRequest.output_response("default", MimeType.PNG),
+                SentinelHubRequest.output_response(
+                    "default", response_format),
             ],
             geometry=geometry,
             resolution=[resolution, resolution],

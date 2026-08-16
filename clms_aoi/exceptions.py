@@ -81,3 +81,17 @@ class InvalidCredentialsError(AuthError):
 
 class TokenRequestError(AuthError):
     """Raised when the OAuth token request fails for network/service reasons."""
+
+
+# Handles product data errors
+
+class ProductError(ClmsAoiError):
+    """Base class for problems fetching or summarising product data."""
+
+
+class NoDataError(ProductError):
+    """Raised when a requested year returns no valid pixels for the AOI.
+
+    This usually means the underlying Sentinel Hub collection has no scene
+    covering that year, rather than a bug in the request itself.
+    """
