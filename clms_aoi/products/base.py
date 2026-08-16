@@ -39,11 +39,11 @@ class BaseProduct(ABC):
     def _request_data(
         self,
         bbox:  tuple[float, float, float, float],
-        geometry: dict | none,
+        geometry: dict | None,
         year: int,
         evalscript: str,
         resolution: float = 0.001,
-    ) -> any:
+    ) -> Any:
         """Call the Sentinel Hub Statistical API and return the parsed JSON."""
         geometry = Geometry(geometry, crs=CRS.WGS84)
         request = SentinelHubRequest(

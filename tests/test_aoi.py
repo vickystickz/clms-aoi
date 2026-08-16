@@ -12,8 +12,6 @@ from clms_aoi.exceptions import (
     AOIFormatError,
     AOIGeometryError,
 )
-
-
 @pytest.fixture(params=[(".gpkg", "GPKG"), (".geojson", "GeoJSON")])
 def sample_vector_file(request, tmp_path):
     """Fixture that generates both GPKG and GeoJSON test files in EPSG:4326."""
@@ -85,3 +83,35 @@ def test_aoi_empty_file(tmp_path, ext, driver):
     handler = AOIHandler(str(file_path))
     with pytest.raises(AOIGeometryError):
         handler.load_and_validate()
+
+def test_aoi_area_ha():
+    """ Test to ensure that area_ha returns correct hectares for a box of known size."""
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    # A 1000 m x 1000 m square in a metre-based CRS = exactly 100 ha.
+    square_utm = gpd.GeoDataFrame(
+        {"id": [1]}, geometry=[box(500000, 5000000, 501000, 5001000)],
+        crs="EPSG:32633",
+    )
+    # Convert to lon/lat, the CRS the handler expects.
+    square_wgs84 = square_utm.to_crs("EPSG:4326")
+
+    handler = AOIHandler("unused")
+    handler.gdf = square_wgs84
+    from shapely.ops import unary_union
+    handler.merged_geometry = unary_union(square_wgs84.geometry)
+
+    area = handler.area_ha()
+    assert area == pytest.approx(100, rel=0.01)   # within 1% of 100 ha
+
+
+def test_aoi_geometry_geojson(sample_vector_file):
+    """Tests that geometry_geojson returns a valid GeoJSON geometry dict."""
+    handler = AOIHandler(sample_vector_file, target_crs="EPSG:4326")
+    handler.load_and_validate()
+
+    gj = handler.geometry_geojson()
+    assert isinstance(gj, dict)
+    assert gj["type"] in {"Polygon", "MultiPolygon"}
+    assert "coordinates" in gj
