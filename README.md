@@ -58,7 +58,7 @@ pytest
 
 ## Configuration
 
-Create a YAML config file with your Sentinel Hub credentials (get these from the [Copernicus Data Space Ecosystem](https://dataspace.copernicus.eu/)):
+Create a YAML config file with your Sentinel Hub credentials (get these from the [Copernicus Data Space Ecosystem](https://shapps.dataspace.copernicus.eu/dashboard)):
 
 ```yaml
 sentinelhub:
