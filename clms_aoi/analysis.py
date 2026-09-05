@@ -28,8 +28,9 @@ def _resolve_years(year: int | None, years: Iterable[int] | None) -> list[int]:
 class AnalysisResult:
     """Holds the summary DataFrame and provides output helpers."""
 
-    def __init__(self, df: pd.DataFrame) -> None:
+    def __init__(self, df: pd.DataFrame, colors:dict  | None = None) -> None:
         self._df = df
+        self._colors = colors or {}
 
     @property
     def data(self) -> pd.DataFrame:
@@ -43,46 +44,16 @@ class AnalysisResult:
         self,
         path: str | Path,
         *,
+        value: str = "area_ha",
         figsize: tuple[int, int] = (12, 6),
         title: str | None = None,
     ) -> "AnalysisResult":
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        from clms_aoi.visualization import plot_class_bars, plot_multiyear_bars
 
-        class_col = "class" if "class" in self._df.columns else "density_class"
-        multi_year = (
-            "year" in self._df.columns and self._df["year"].nunique() > 1
-        )
-
-        fig, ax = plt.subplots(figsize=figsize)
-
-        if multi_year:
-            pivot = (
-                self._df.pivot(index=class_col, columns="year",
-                               values="area_ha")
-                .fillna(0)
-            )
-            pivot.plot(kind="bar", ax=ax)
-            ax.set_ylabel("Area (ha)")
-            ax.set_xlabel("")
-            ax.legend(title="Year", bbox_to_anchor=(1.01, 1), loc="upper left")
-        else:
-            row = self._df.sort_values("area_ha", ascending=False)
-            ax.bar(row[class_col], row["area_ha"])
-            ax.set_ylabel("Area (ha)")
-            ax.set_xlabel("")
-            if "year" in self._df.columns:
-                ax.set_title(str(self._df["year"].iloc[0]))
-
-        if title is not None:
-            ax.set_title(title)
-
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
-        image_format = path.suffix.lstrip(".").lower() or "jpeg"
-        if image_format == "jpg":
-            image_format = "jpeg"
-        fig.savefig(path, format=image_format, dpi=150)
+        multi_year = "year" in self._df.columns and self._df["year"].nunique() > 1
+        draw = plot_multiyear_bars if multi_year else plot_class_bars
+        fig = draw(self._df, path, colors=self._colors,
+                value=value, figsize=figsize, title=title)
         plt.close(fig)
         return self
 
@@ -130,7 +101,7 @@ class _BaseAnalyser:
             frames.append(df)
 
         combined = pd.concat(frames, ignore_index=True)
-        return AnalysisResult(combined)
+        return AnalysisResult(combined, colors = product.colors)
 
 
 class LandCover(_BaseAnalyser):

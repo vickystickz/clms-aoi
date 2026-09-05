@@ -13,10 +13,12 @@ from sentinelhub import MimeType
 
 from clms_aoi.aoi import BoundingBox
 from clms_aoi.products.base import BaseProduct
+from clms_aoi.colors import convert_colors
 
 
 # Collection ID and EVALSCRIPT for the Forest Type product
 COLLECTION_ID = "4d1aad1a-f800-43c5-87d0-5565a9a31c12"
+
 
 # Dates Available: 2018, 2021, 2024
 
@@ -115,6 +117,10 @@ _NODATA_VALUE = 255
 
 class ForestTypeProduct(BaseProduct):
     COLLECTION_ID = COLLECTION_ID
+    @property
+    def colors(self) -> dict:
+        """Class name -> RGB (0-1) colour map for this product's land-cover classes."""
+        return convert_colors(forest_type_classes)
 
     def visualize(
         self,

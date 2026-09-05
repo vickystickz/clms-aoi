@@ -13,6 +13,7 @@ from sentinelhub import MimeType
 
 from clms_aoi.products.base import BaseProduct
 from clms_aoi.aoi import BoundingBox
+from clms_aoi.colors import convert_colors
 
 COLLECTION_ID = "828f6b20-8ffd-48f8-a1da-fefd271456db"
 
@@ -110,6 +111,10 @@ class DynamicLandCover(BaseProduct):
             Return a visualization of the product (e.g. a color map).
     """
     COLLECTION_ID = COLLECTION_ID
+    @property
+    def colors(self) -> dict:
+        """Class name -> RGB (0-1) colour map for this product's land-cover classes."""
+        return convert_colors(lulc_colors)
 
     def visualize(
         self,
