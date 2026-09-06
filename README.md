@@ -4,7 +4,7 @@ A lightweight Python library and CLI for extracting and summarising Copernicus L
 
 Point it at a boundary file, pick a product and year, and get back a pandas DataFrame, a CSV, and/or a bar chart — no hand-rolled Sentinel Hub request boilerplate required.
 
-> **Status:** early (`0.1.2`). The Python API is the primary interface today; the CLI currently covers config/auth/AOI validation only (see [CLI usage](#cli-usage)).
+> **Status:** early (`0.1.3`). The Python API is the primary interface today; the CLI currently covers config/auth/AOI validation only (see [CLI usage](#cli-usage)).
 
 ---
 
