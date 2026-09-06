@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clms-aoi"
-version = "0.1.1"
+version = "0.1.2"
 description = "Analyse Copernicus Land Monitoring Service products for an area of interest."
 readme = "README.md"
 requires-python = ">=3.10"
