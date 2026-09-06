@@ -13,6 +13,8 @@ from sentinelhub import (
     Geometry,
 )
 
+from clms_aoi.exceptions import NoDataError
+
 
 _CDSE_BASE_URL = "https://sh.dataspace.copernicus.eu"
 _STATS_PATH = "/api/v1/statistics"
@@ -81,3 +83,33 @@ class BaseProduct(ABC):
         )
         print("Request created successfully")
         return request.get_data()
+
+    def _safe_request(
+        self,
+        geometry: dict,
+        year: int,
+        *,
+        evalscript: str,
+        response_format: MimeType = MimeType.PNG,
+    ) -> Any:
+        """Call `_request_data` and turn any fetch failure into a `NoDataError`.
+
+        Covers both hard failures (network/API errors, an empty response list)
+        and the case where the request succeeds but the year has no scene
+        covering the AOI.
+        """
+        try:
+            response = self._request_data(
+                geometry,
+                year,
+                evalscript=evalscript,
+                response_format=response_format,
+            )
+            return response[0]
+        except Exception as exc:
+            raise NoDataError(
+                f"Could not fetch data for year {year} within the requested AOI: {exc}. "
+                "This usually means the underlying Sentinel Hub collection has no "
+                "scene covering that year — check the collection's available "
+                "acquisition dates rather than assuming the request is broken."
+            ) from exc

@@ -14,6 +14,7 @@ from sentinelhub import MimeType
 from clms_aoi.aoi import BoundingBox
 from clms_aoi.products.base import BaseProduct
 from clms_aoi.colors import convert_colors
+from clms_aoi.exceptions import NoDataError
 
 
 # Collection ID and EVALSCRIPT for the Forest Type product
@@ -136,12 +137,14 @@ class ForestTypeProduct(BaseProduct):
         Returns the (H, W, 4) RGBA image array so callers can inspect or
         save it further (e.g. `plt.imsave(path, img)`).
         """
-        response = self._request_data(
-            geometry,
-            year,
-            evalscript=EVALSCRIPT,
-        )
-        img = response[0]
+        img = self._safe_request(geometry, year, evalscript=EVALSCRIPT)
+        if not np.any(img[..., 3] > 0):
+            raise NoDataError(
+                f"No valid pixels returned for year {year} within the requested AOI. "
+                "This usually means the underlying Sentinel Hub collection has no "
+                "scene covering that year — check the collection's available "
+                "acquisition dates rather than assuming the request is broken."
+            )
 
         if ax is None:
             _, ax = plt.subplots(figsize=(8, 8))
@@ -188,13 +191,12 @@ class ForestTypeProduct(BaseProduct):
             np.ndarray
                 The raw array returned by the `fetch()` method, containing per-pixel forest type class codes and data mask.  
         """
-        raw = self._request_data(
+        return self._safe_request(
             geometry,
             year,
             evalscript=_CLASS_EVALSCRIPT,
             response_format=MimeType.TIFF,
         )
-        return raw[0]
 
     def summarize(self, raw: np.ndarray) -> pd.DataFrame:
         """Method summarize a `fetch()` array into per-class pixel counts and area share.

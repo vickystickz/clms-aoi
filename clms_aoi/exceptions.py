@@ -26,7 +26,7 @@ class ConfigFileNotFoundError(ConfigError):
             msg = f"Config file not found at path: '{file_path}'"
         else:
             msg = "Config file path does not exist."
-        super
+        super().__init__(msg)
 
 
 

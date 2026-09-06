@@ -18,12 +18,12 @@ Land use analysts, GIS practitioners, students, NGOs, and small consultancies wh
 
 | Product | Description | Available years | Status |
 |---|---|---|---|
-| Dynamic Land Cover | Annual global land cover classification (tree cover, cropland, grassland, built-up, water, etc.) | 2018–2024 | Available via Python API (`LandCover`) |
+| Dynamic Land Cover | Annual global land cover classification (tree cover, cropland, grassland, built-up, water, etc.) | 2020 | Available via Python API (`LandCover`) |
 | Forest Type (FTY) | Broadleaved vs. coniferous forest classification | 2018, 2021, 2024 | Available via Python API (`ForestType`) |
+| Crop Type (CTY) | Per-pixel crop classification (wheat, maize, vineyards, olives, etc.) | 2018, 2021, 2024 | Available via Python API (`CropType`) |
 | Tree Cover Density (TCD) | Pan-European canopy cover as a percentage (0–100) | 2018, 2021, 2024 | In progress — fetch/visualise only, not yet exposed as a public class |
 | CLC+ Backbone (LULUCF instance) | 27-class pan-European land use classification | 2018, 2021–2023 | In progress — fetch/visualise only, not yet exposed as a public class |
 
-Grasslands is not currently implemented.
 
 ---
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -9,10 +10,13 @@ import pandas as pd
 from clms_aoi.aoi import AOIHandler
 from clms_aoi.auth import SentinelHubAuthenticator
 from clms_aoi.config import ConfigLoader
-from clms_aoi.exceptions import NoDataError
+from clms_aoi.exceptions import ClmsAoiError, NoDataError, ProductError
 from clms_aoi.outputs import write_csv
 from clms_aoi.products.dynamic_land_cover import DynamicLandCover
 from clms_aoi.products.forest_type import ForestTypeProduct
+from clms_aoi.products.crop_land_type import CropLandTypeProduct
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_years(year: int | None, years: Iterable[int] | None) -> list[int]:
@@ -28,7 +32,7 @@ def _resolve_years(year: int | None, years: Iterable[int] | None) -> list[int]:
 class AnalysisResult:
     """Holds the summary DataFrame and provides output helpers."""
 
-    def __init__(self, df: pd.DataFrame, colors:dict  | None = None) -> None:
+    def __init__(self, df: pd.DataFrame, colors: dict | None = None) -> None:
         self._df = df
         self._colors = colors or {}
 
@@ -50,10 +54,11 @@ class AnalysisResult:
     ) -> "AnalysisResult":
         from clms_aoi.visualization import plot_class_bars, plot_multiyear_bars
 
-        multi_year = "year" in self._df.columns and self._df["year"].nunique() > 1
+        multi_year = "year" in self._df.columns and self._df["year"].nunique(
+        ) > 1
         draw = plot_multiyear_bars if multi_year else plot_class_bars
         fig = draw(self._df, path, colors=self._colors,
-                value=value, figsize=figsize, title=title)
+                   value=value, figsize=figsize, title=title)
         plt.close(fig)
         return self
 
@@ -74,7 +79,7 @@ class _BaseAnalyser:
 
     def _run(
         self,
-        product: DynamicLandCover | ForestTypeProduct,
+        product: DynamicLandCover | ForestTypeProduct | CropLandTypeProduct,
         aoi: str | Path,
         year: int | None,
         years: Iterable[int] | None,
@@ -87,8 +92,19 @@ class _BaseAnalyser:
 
         frames: list[pd.DataFrame] = []
         for y in resolved:
-            raw = product.fetch(bbox, geometry, y)
-            df = product.summarize(raw)
+            try:
+                raw = product.fetch(bbox, geometry, y)
+                df = product.summarize(raw)
+            except ClmsAoiError:
+                raise
+            except Exception as exc:
+                logger.error(
+                    "Failed to fetch/summarize %s for year %s: %s",
+                    type(product).__name__, y, exc,
+                )
+                raise ProductError(
+                    f"Failed to fetch or summarize data for year {y}: {exc}"
+                ) from exc
             if df.empty:
                 raise NoDataError(
                     f"No valid pixels returned for year {y} within the requested AOI. "
@@ -101,7 +117,30 @@ class _BaseAnalyser:
             frames.append(df)
 
         combined = pd.concat(frames, ignore_index=True)
-        return AnalysisResult(combined, colors = product.colors)
+        return AnalysisResult(combined, colors=product.colors)
+
+    def _visualize(
+        self,
+        product: DynamicLandCover | ForestTypeProduct | CropLandTypeProduct,
+        aoi: str | Path,
+        year: int,
+        show: bool,
+    ) -> Any:
+        handler = self._load_aoi(aoi)
+        try:
+            return product.visualize(
+                handler.get_bbox(), handler.geometry_geojson(), year, show=show
+            )
+        except ClmsAoiError:
+            raise
+        except Exception as exc:
+            logger.error(
+                "Failed to visualize %s for year %s: %s",
+                type(product).__name__, year, exc,
+            )
+            raise ProductError(
+                f"Failed to visualize data for year {year}: {exc}"
+            ) from exc
 
 
 class LandCover(_BaseAnalyser):
@@ -139,10 +178,7 @@ class LandCover(_BaseAnalyser):
 
     def visualize(self, aoi: str | Path, *, year: int, show: bool = True) -> Any:
         """Fetch and display the color-mapped land cover map for *aoi* and *year*."""
-        handler = self._load_aoi(aoi)
-        return self._product.visualize(
-            handler.get_bbox(), handler.geometry_geojson(), year, show=show
-        )
+        return self._visualize(self._product, aoi, year, show)
 
 
 class ForestType(_BaseAnalyser):
@@ -180,7 +216,42 @@ class ForestType(_BaseAnalyser):
 
     def visualize(self, aoi: str | Path, *, year: int, show: bool = True) -> Any:
         """Fetch and display the color-mapped forest type map for *aoi* and *year*."""
-        handler = self._load_aoi(aoi)
-        return self._product.visualize(
-            handler.get_bbox(), handler.geometry_geojson(), year, show=show
-        )
+        return self._visualize(self._product, aoi, year, show)
+
+
+class CropType(_BaseAnalyser):
+    """Analyse Crop land Type for an area of interest.
+
+    Parameters
+    ----------
+    config_path:
+        Path to the YAML configuration file containing Sentinel Hub credentials.
+
+    Examples
+    --------
+    >>> clt = CropLandType("config.yml")
+    >>> result = clt.analyse(aoi="boundary.geojson", year=2020)
+    >>> result.to_csv("croplandtype.csv").to_chart("croplandtype.jpg")
+    >>> clt.visualize(aoi="boundary.geojson", year=2020)
+    """
+
+    def __init__(self, config_path: str | Path) -> None:
+        super().__init__(config_path)
+        self._product = CropLandTypeProduct(self._token_cache)
+
+    def analyse(
+        self,
+        aoi: str | Path,
+        *,
+        year: int | None = None,
+        years: Iterable[int] | None = None,
+    ) -> AnalysisResult:
+        """Fetch and summarize crop type cover for *aoi*.
+
+        Pass exactly one of *year* (single int) or *years* (list/range of ints).
+        """
+        return self._run(self._product, aoi, year=year, years=years)
+
+    def visualize(self, aoi: str | Path, *, year: int, show: bool = True) -> Any:
+        """Fetch and display the color-mapped crop type map for *aoi* and *year*."""
+        return self._visualize(self._product, aoi, year, show)

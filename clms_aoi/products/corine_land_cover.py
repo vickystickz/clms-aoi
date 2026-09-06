@@ -12,6 +12,7 @@ from sentinelhub import MimeType
 
 from clms_aoi.products.base import BaseProduct
 from clms_aoi.aoi import BoundingBox
+from clms_aoi.exceptions import NoDataError
 
 COLLECTION_ID = "714b4c8d-2d89-4ed8-933c-f7c8bb7a1d4b"
 
@@ -184,12 +185,14 @@ class CorineLandCover(BaseProduct):
         Returns the (H, W, 4) RGBA image array so callers can inspect or
         save it further (e.g. `plt.imsave(path, img)`).
         """
-        response = self._request_data(
-            geometry,
-            year,
-            evalscript=EVALSCRIPT,
-        )
-        img = response[0]
+        img = self._safe_request(geometry, year, evalscript=EVALSCRIPT)
+        if not np.any(img[..., 3] > 0):
+            raise NoDataError(
+                f"No valid pixels returned for year {year} within the requested AOI. "
+                "This usually means the underlying Sentinel Hub collection has no "
+                "scene covering that year — check the collection's available "
+                "acquisition dates rather than assuming the request is broken."
+            )
 
         if ax is None:
             _, ax = plt.subplots(figsize=(8, 8))
@@ -230,15 +233,22 @@ class CorineLandCover(BaseProduct):
         class codes come back as exact integers rather than the
         color-mapped PNG used for `visualize`.
         """
-        raw = self._request_data(
+        data = self._safe_request(
             geometry,
             year,
             evalscript=_CLASS_EVALSCRIPT,
             response_format=MimeType.TIFF,
         )
-        return raw[0]
+        if not np.any(data[..., 1] > 0):
+            raise NoDataError(
+                f"No valid pixels returned for year {year} within the requested AOI. "
+                "This usually means the underlying Sentinel Hub collection has no "
+                "scene covering that year — check the collection's available "
+                "acquisition dates rather than assuming the request is broken."
+            )
+        return data
 
-    def summarise(self, raw: np.ndarray) -> pd.DataFrame:
+    def summarize(self, raw: np.ndarray) -> pd.DataFrame:
         """Summarise a `fetch()` array into per-class pixel counts and area share."""
         codes = raw[..., 0]
         valid = (raw[..., 1] > 0) & (codes != _NODATA_VALUE)
