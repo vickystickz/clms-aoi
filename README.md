@@ -21,9 +21,6 @@ Land use analysts, GIS practitioners, students, NGOs, and small consultancies wh
 | Dynamic Land Cover | Annual global land cover classification (tree cover, cropland, grassland, built-up, water, etc.) | 2020 | Available via Python API (`LandCover`) |
 | Forest Type (FTY) | Broadleaved vs. coniferous forest classification | 2018, 2021, 2024 | Available via Python API (`ForestType`) |
 | Crop Type (CTY) | Per-pixel crop classification (wheat, maize, vineyards, olives, etc.) | 2018, 2021, 2024 | Available via Python API (`CropType`) |
-| Tree Cover Density (TCD) | Pan-European canopy cover as a percentage (0–100) | 2018, 2021, 2024 | In progress — fetch/visualise only, not yet exposed as a public class |
-| CLC+ Backbone (LULUCF instance) | 27-class pan-European land use classification | 2018, 2021–2023 | In progress — fetch/visualise only, not yet exposed as a public class |
-
 
 ---
 
@@ -129,14 +126,18 @@ result.data
 lc.visualize(aoi="boundary.geojson", year=2020)
 ```
 
-`ForestType` has the same shape:
+`ForestType` and `CropType` have the same shape:
 
 ```python
-from clms_aoi import ForestType
+from clms_aoi import ForestType, CropType
 
 ft = ForestType(config_path="config.yaml")
 result = ft.analyse(aoi="boundary.geojson", years=[2018, 2021, 2024])
 result.to_csv("forest_type.csv").to_chart("forest_type.jpg")
+
+ct = CropType(config_path="config.yaml")
+result = ct.analyse(aoi="boundary.geojson", years=[2018, 2021, 2024])
+result.to_csv("crop_type.csv").to_chart("crop_type.jpg")
 ```
 
 Pass exactly one of `year=` (a single int) or `years=` (a list/range of ints) to `analyse()`.
@@ -155,6 +156,28 @@ Pass exactly one of `year=` (a single int) or `years=` (a list/range of ints) to
 
 ---
 
+## Example results
+
+Charts below were generated with `to_chart()` for a test AOI. Drop the corresponding image files into `docs/images/` (same filenames as referenced here) to have them render.
+
+**Figure 1.** Dynamic Land Cover class distribution for the test AOI, 2020. Each class is drawn in its conventional colour, sorted by area, with values labelled in hectares.
+
+![Dynamic Land Cover class distribution, 2020](docs/images/land-cover-2020.png)
+
+**Figure 2.** Crop Type class distribution for the test AOI, 2021, showing the per-class cultivated area in hectares.
+
+![Crop Type class distribution, 2021](docs/images/crop-type-2021.png)
+
+**Figure 3.** Forest Type class distribution for the test AOI, 2021 (broadleaved, coniferous, and non-forest).
+
+![Forest Type class distribution, 2021](docs/images/forest-type-2021.png)
+
+**Figure 4.** Multi-year Forest Type comparison for the test AOI (2018, 2021, 2024), with one bar per year within each class to show change over time.
+
+![Multi-year Forest Type comparison, 2018/2021/2024](docs/images/forest-type-multiyear.png)
+
+---
+
 ## Dependencies
 
 - `sentinelhub` — authenticated Statistical API requests
@@ -162,7 +185,6 @@ Pass exactly one of `year=` (a single int) or `years=` (a list/range of ints) to
 - `numpy` — raster array summarisation
 - `matplotlib` — chart and map rendering
 - `pandas` — tabular output
-- `click` — CLI
 - `requests` — Sentinel Hub OAuth token requests
 - `PyYAML` — config parsing
 
@@ -170,10 +192,8 @@ Pass exactly one of `year=` (a single int) or `years=` (a list/range of ints) to
 
 ## Limitations and known constraints
 
-- **CLI analysis commands not yet available.** `land-cover`/`forest-type`-style CLI subcommands are planned but not implemented; use the Python API in the meantime.
-- **Only two products are fully wired up.** Dynamic Land Cover and Forest Type are exposed as `LandCover`/`ForestType`. Tree Cover Density and CLC+ Backbone exist in the codebase but aren't yet exposed as public classes.
-- **No Grasslands product.**
-- **No change detection.** The library reports values per year but does not compute transition matrices or gain/loss statistics between years.
+- **Only three CLMS products are fully wired up.** Dynamic Land Cover, Forest Type, and Crop Type are exposed as `LandCover`/`ForestType`/`CropType`.
+- **No change detection.** The library reports values per year but does not compute transition matrices or gain/loss statistics between years yet.
 - **No map outputs to disk.** `visualize()` returns/plots an image array; it does not currently save clipped raster maps to a file for you.
 - **AOI size.** Sentinel Hub has request size and pixel count limits; very large AOIs may hit them.
 
@@ -194,3 +214,25 @@ result.to_chart("./results/land-cover-2022.jpg")
 ```
 
 You'll find a CSV table and a bar chart in `./results/`, ready to share.
+
+
+## AI Use Disclaimer 
+
+AI tools were used to help scaffold the Python library, setting up the boilerplate, so it works both as a CLI and as an importable Python package, and to help work out an approach for extracting pixel values from the requested products. All generated outputs were reviewed and adjusted by hand to match the specific requirements of clms-aoi. 
+
+
+---
+
+## Authors
+
+- **Victor Ademoyero** — [victor.ademoyer@stud.plus.ac.at](mailto:victor.ademoyer@stud.plus.ac.at)
+- **Julia Wakaba** — [julia.wakaba@stud.plus.ac.at](mailto:julia.wakaba@stud.plus.ac.at)
+- **Riya Pokhrel** — [riya.pokhrel@stud.plus.ac.at](mailto:riya.pokhrel@stud.plus.ac.at)
+
+## Instructor
+
+**Martin Sudmanns** — [martin.sudmanns@plus.ac.at](mailto:martin.sudmanns@plus.ac.at)
+
+## License
+
+This project was created for the Practice Software Development (651.051) final project submission.
