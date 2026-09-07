@@ -1,10 +1,10 @@
 # clms-aoi
 
-A lightweight Python library and CLI for extracting and summarising Copernicus Land Monitoring Service (CLMS) data for any area of interest, via Sentinel Hub's Statistical API.
+A lightweight Python library and CLI for extracting and summarizing Copernicus Land Monitoring Service (CLMS) data for any area of interest, via Sentinel Hub's Statistical API.
 
 Point it at a boundary file, pick a product and year, and get back a pandas DataFrame, a CSV, and/or a bar chart — no hand-rolled Sentinel Hub request boilerplate required.
 
-> **Status:** early (`0.1.3`). The Python API is the primary interface today; the CLI currently covers config/auth/AOI validation only (see [CLI usage](#cli-usage)).
+> **Status:** early (`0.1.4`). The Python API is the primary interface today; the CLI currently covers config/auth/AOI validation only (see [CLI usage](#cli-usage)).
 
 ---
 
@@ -21,7 +21,6 @@ Land use analysts, GIS practitioners, students, NGOs, and small consultancies wh
 | Dynamic Land Cover | Annual global land cover classification (tree cover, cropland, grassland, built-up, water, etc.) | 2020 | Available via Python API (`LandCover`) |
 | Forest Type (FTY) | Broadleaved vs. coniferous forest classification | 2018, 2021, 2024 | Available via Python API (`ForestType`) |
 | Crop Type (CTY) | Per-pixel crop classification (wheat, maize, vineyards, olives, etc.) | 2018, 2021, 2024 | Available via Python API (`CropType`) |
-
 ---
 
 ## Installation
